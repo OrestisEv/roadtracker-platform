@@ -1,0 +1,147 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/OrestisEv/roadtracker-platform/contracts/route.schema.json",
+  "title": "Route",
+  "description": "A single ride/route in the RoadTracker system. This is the canonical definition — both the Android and Web apps must serialize/deserialize to this exact shape when communicating with Supabase.",
+  "type": "object",
+  "required": ["id", "user_id", "name", "date_ms", "coordinates", "distance_km", "mode"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Client-generated unique identifier. Android uses base36 timestamp+random (e.g. 'lt9f3k2x'). Web uses crypto.randomUUID(). Both formats are valid — the column is text, not uuid."
+    },
+    "user_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The Supabase auth.uid() of the user who owns this route. Set on insert, enforced by Row Level Security."
+    },
+    "name": {
+      "type": "string",
+      "default": "Untitled ride",
+      "description": "User-facing route name. Auto-generated from date/mode if not specified."
+    },
+    "date_ms": {
+      "type": "integer",
+      "description": "Epoch milliseconds (UTC) when the ride occurred. NOT a calendar date — store as bigint, convert to local time for display."
+    },
+    "coordinates": {
+      "type": "array",
+      "description": "Ordered array of points forming the route polyline. Latitude first, always.",
+      "items": {
+        "$ref": "#/definitions/RoutePoint"
+      },
+      "minItems": 2
+    },
+    "distance_km": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total route distance in kilometers. Computed via Haversine formula. Always stored as km regardless of display preference."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["gps", "manual"],
+      "description": "'gps' = recorded via GPS tracking (phone or browser). 'manual' = drawn by hand on the map or imported from GPX."
+    },
+    "duration_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Ride duration in seconds. Set by GPS tracking; 0 for manual routes."
+    },
+    "max_speed": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "description": "Maximum speed during the ride in km/h. Captured by Android GPS; 0 for manual/web routes."
+    },
+    "avg_speed": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "description": "Average speed during the ride in km/h. Captured by Android GPS; 0 for manual/web routes."
+    },
+    "max_lean_angle": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "description": "Maximum lean angle in degrees. Captured by Android accelerometer; 0 for web routes."
+    },
+    "max_g_force": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "description": "Maximum g-force experienced. Captured by Android accelerometer; 0 for web routes."
+    },
+    "elevation_gain": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "description": "Total elevation gain in meters. Captured by Android GPS/barometer; 0 for web routes."
+    },
+    "telemetry_json": {
+      "type": "string",
+      "default": "",
+      "description": "Serialized JSON array of TelemetrySample objects. Empty string if no telemetry (manual routes, web routes). When non-empty, parse as JSON array of TelemetrySample."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server-managed. Do not set on insert."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server-managed. Auto-updated by trigger on every UPDATE."
+    }
+  },
+  "definitions": {
+    "RoutePoint": {
+      "type": "object",
+      "required": ["lat", "lng"],
+      "properties": {
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "description": "Latitude in decimal degrees. ALWAYS first."
+        },
+        "lng": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "description": "Longitude in decimal degrees."
+        }
+      },
+      "additionalProperties": false
+    },
+    "TelemetrySample": {
+      "type": "object",
+      "description": "A single telemetry reading captured during a GPS ride. Only Android produces these.",
+      "required": ["timeSec", "speedKmh", "leanAngle", "gForce", "altitude"],
+      "properties": {
+        "timeSec": {
+          "type": "integer",
+          "description": "Seconds elapsed since ride start."
+        },
+        "speedKmh": {
+          "type": "number",
+          "description": "Speed at this moment in km/h."
+        },
+        "leanAngle": {
+          "type": "number",
+          "description": "Lean angle in degrees at this moment."
+        },
+        "gForce": {
+          "type": "number",
+          "description": "G-force at this moment."
+        },
+        "altitude": {
+          "type": "number",
+          "description": "Altitude in meters at this moment."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
